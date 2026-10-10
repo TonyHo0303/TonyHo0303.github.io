@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>把一次训练变成可靠的实验 · Tony 的学习笔记</title><meta name="description" content="建立资源预算与排错顺序，理解混合精度、LoRA、梯度累积和分布式训练。">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/style.css"></head>
+<body><a class="skip" href="#main">跳到正文</a><header><a class="brand" href="../index.html">Tony 的学习笔记</a><a href="https://github.com/TonyHo0303">GitHub ↗</a></header>
+<main id="main"><article><a class="back" href="../index.html">← 全部文章</a><h1>把一次训练变成可靠的实验</h1><p class="subtitle">显存、检查点与训练故障排查</p><p class="meta">多模态训练 · 第 7 篇</p><div class="article-body"><h2 id="先测量-再扩大训练">先测量，再扩大训练</h2>
+<p>研究实验需要同时记录正确性和资源开销。先用小批次跑完整前向、反向和保存流程，再测量每步耗时、峰值显存与数据加载时间。</p>
+<p>显存不只是模型权重。还可能包含梯度、优化器状态、中间激活、临时运算缓冲和通信开销。具体占用取决于精度、优化器、序列长度与实现。</p>
+<h2 id="常见工具分别解决什么">常见工具分别解决什么</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>技术</th>
+<th>主要作用</th>
+<th>容易忽略的条件</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>混合精度</td>
+<td>降低部分存储与运算成本</td>
+<td>检查硬件支持和数值稳定性</td>
+</tr>
+<tr>
+<td>激活检查点</td>
+<td>用重计算节省激活存储</td>
+<td>训练时间可能增加</td>
+</tr>
+<tr>
+<td>梯度累积</td>
+<td>跨微批次累加更新信号</td>
+<td>损失归一化和优化步数要匹配</td>
+</tr>
+<tr>
+<td>LoRA</td>
+<td>用低秩参数更新模型</td>
+<td>仍有基础权重与激活开销</td>
+</tr>
+<tr>
+<td>数据并行</td>
+<td>多设备处理不同样本</td>
+<td>需要正确同步梯度和数据采样</td>
+</tr>
+<tr>
+<td>参数分片</td>
+<td>分散参数等状态的存储</td>
+<td>带来通信与恢复复杂度</td>
+</tr>
+</tbody>
+</table></div>
+<p>这些方法可以组合，但组合后仍要验证结果与资源变化，不能仅靠配置名称判断是否有效。</p>
+<h2 id="对比学习里的一个特殊陷阱">对比学习里的一个特殊陷阱</h2>
+<p>四个微批次依次计算对比损失，再累积梯度，不等价于把四批数据放在一起计算一次大相似度矩阵。前者通常没有把不同微批次中的样本互相作为候选负样本。</p>
+<p>如果论文依赖大批次负样本，需要检查它是否使用跨设备特征收集、缓存或其他机制。不能把“有效更新批量”和“对比损失的候选集合大小”混为一谈。</p>
+<h2 id="按顺序排查失败">按顺序排查失败</h2>
+<ol>
+<li>查看真实样本：图片、文本和标签是否匹配，裁剪和截断是否破坏含义。</li>
+<li>检查形状、类型和设备：特别是广播、掩码与归一化维度。</li>
+<li>检查梯度：是否存在、是否为有限值，是否到达目标模块。</li>
+<li>检查更新：优化器是否包含目标参数，学习率是否实际生效。</li>
+<li>固定一个小批次尝试拟合，再逐步恢复复杂设置。</li>
+<li>对照训练和验证表现，区分实现故障与泛化问题。</li>
+</ol>
+<p>如果损失出现非有限值，先检查输入与中间数值，再排查温度、归一化、精度和学习率。梯度裁剪可能缓解问题，但不能替代找出原因。</p>
+<h2 id="检查点是实验的一部分">检查点是实验的一部分</h2>
+<p>为了恢复训练，除了权重，通常还要保存优化器、学习率调度器、训练步数，以及必要的随机数与数据迭代状态。记录代码版本、数据版本和配置，才能解释两次运行为何不同。</p>
+<pre><code class="language-text">experiment/
+  config.json        # 数据、模型、损失、种子和超参数
+  metrics.jsonl      # 每次记录的步数与指标
+  checkpoints/       # 可恢复的训练状态
+  report.md          # 假设、结果、失败和下一步
+</code></pre>
+<h2 id="本篇练习">本篇练习</h2>
+<p>故意在一个小实验中断训练，再从检查点恢复。比较恢复前后的步数、学习率和损失趋势。另做一个忘记更新参数的错误版本，练习通过参数差异定位问题。</p>
+<p><strong>验收：</strong>能区分模型质量问题和训练实现问题，能说明一次结果使用了哪些数据、代码与资源。</p>
+<h2 id="原始资料">原始资料</h2>
+<ul>
+<li><a href="https://arxiv.org/abs/2106.09685">LoRA：Low-Rank Adaptation of Large Language Models</a></li>
+<li><a href="https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html">PyTorch：保存和加载模型</a></li>
+</ul></div><nav class="pagination" aria-label="上一篇和下一篇"><a href="05-data-evaluation.html">← 模型是真的会，还是猜对了</a><a href="07-research.html">从复现者，走向提问者 →</a></nav></article></main><footer>内容由 AI 辅助整理 · <a href="https://github.com/TonyHo0303/TonyHo0303.github.io/issues">反馈与纠错</a></footer></body></html>

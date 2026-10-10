@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>让一种信息读懂另一种信息 · Tony 的学习笔记</title><meta name="description" content="追踪 Q、K、V 的形状，比较双编码器、交叉注意力与视觉 token 拼接。">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/style.css"></head>
+<body><a class="skip" href="#main">跳到正文</a><header><a class="brand" href="../index.html">Tony 的学习笔记</a><a href="https://github.com/TonyHo0303">GitHub ↗</a></header>
+<main id="main"><article><a class="back" href="../index.html">← 全部文章</a><h1>让一种信息读懂另一种信息</h1><p class="subtitle">注意力、视觉 token 与跨模态融合</p><p class="meta">多模态训练 · 第 4 篇</p><div class="article-body"><h2 id="对齐之后-为什么还需要融合">对齐之后，为什么还需要融合</h2>
+<p>图文检索可以分别编码两种输入，再比较它们的向量。但问题“这张照片里左边的人拿着什么”需要根据问题选择相关视觉证据。一个固定的全局向量可能压缩掉必要的细节。</p>
+<p>融合让信息在处理过程中发生交互。注意力是实现这种交互的一种机制。</p>
+<h2 id="把注意力看成一次可学习的读取">把注意力看成一次可学习的读取</h2>
+<div class="formula"><div>Attention(Q, K, V) = softmax(QKᵀ / √d) V</div><p>沿键的位置归一化匹配分数，再对值进行加权读取。</p></div>
+
+<p>Q 是查询，K 是用于匹配的键，V 是被读取的值。先用 Q 与 K 计算匹配分数，再沿候选键的方向做 softmax，得到权重，最后对 V 加权求和。</p>
+<p>这是一种计算解释，并不保证每个注意力权重都对应人类可理解的“关注原因”。不能只凭一张热力图就证明模型的决策机制。</p>
+<h2 id="用形状检查理解">用形状检查理解</h2>
+<p>省略批次与多头维度，设问题有 L 个 token，图片有 N 个视觉 token：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>张量</th>
+<th>形状</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Q</td>
+<td><code>[L, d]</code></td>
+<td>每个文字位置发出的查询</td>
+</tr>
+<tr>
+<td>K</td>
+<td><code>[N, d]</code></td>
+<td>每个视觉位置的匹配特征</td>
+</tr>
+<tr>
+<td>V</td>
+<td><code>[N, d_v]</code></td>
+<td>每个视觉位置携带的内容</td>
+</tr>
+<tr>
+<td>QK 转置</td>
+<td><code>[L, N]</code></td>
+<td>文字对视觉位置的匹配</td>
+</tr>
+<tr>
+<td>输出</td>
+<td><code>[L, d_v]</code></td>
+<td>每个文字位置读取的视觉内容</td>
+</tr>
+</tbody>
+</table></div>
+<pre><code class="language-python"># q: [B, L, d], k: [B, N, d], v: [B, N, d_v]
+scores = q @ k.transpose(-2, -1) / (q.shape[-1] ** 0.5)
+weights = scores.softmax(dim=-1)
+output = weights @ v
+</code></pre>
+<p>自注意力的 Q、K、V 来自同一序列；交叉注意力可以让它们来自不同来源。多头注意力则允许多个投影空间同时参与计算。</p>
+<h2 id="图像怎样成为-token">图像怎样成为 token</h2>
+<p>一种常见方式是把图像切成若干小块，再把每块映射为向量。对于高宽都能被块大小整除、没有额外裁剪和合并的情况，块数是 <code>(H/P) × (W/P)</code>。</p>
+<p>位置编码帮助模型区分空间位置。提高分辨率通常能保留更多细节，也会增加 token 数量。标准稠密自注意力的两两交互计算随序列长度平方增长；实际显存还受注意力实现、检查点和精度影响。</p>
+<h2 id="三类结构的取舍">三类结构的取舍</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>结构</th>
+<th>信息怎样交互</th>
+<th>适合思考的取舍</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>双编码器</td>
+<td>编码后比较表示</td>
+<td>便于提前建立检索索引</td>
+</tr>
+<tr>
+<td>交叉注意力</td>
+<td>一个序列读取另一个序列</td>
+<td>可以反复进行条件化交互</td>
+</tr>
+<tr>
+<td>视觉 token 接入语言模型</td>
+<td>视觉与文字进入共同处理流程</td>
+<td>复用语言模型，但增加序列负担</td>
+</tr>
+</tbody>
+</table></div>
+<p>没有一种结构对所有任务都最优。选型要结合输出形式、输入长度、延迟和训练预算。</p>
+<h2 id="本篇练习">本篇练习</h2>
+<p>用两个文字查询、三个视觉位置，手算一个小型注意力矩阵。让其中一个键与某个查询更加相似，预测权重变化，再用程序验证。</p>
+<p><strong>验收：</strong>能正确选择 softmax 的维度；能解释为什么注意力输出的序列长度由 Q 决定；能区分对齐与融合。</p>
+<h2 id="原始资料">原始资料</h2>
+<ul>
+<li><a href="https://arxiv.org/abs/1706.03762">Attention Is All You Need</a></li>
+<li><a href="https://arxiv.org/abs/2010.11929">An Image is Worth 16x16 Words</a></li>
+<li><a href="https://arxiv.org/abs/2204.14198">Flamingo：Visual Language Model for Few-Shot Learning</a></li>
+</ul></div><nav class="pagination" aria-label="上一篇和下一篇"><a href="02-contrastive.html">← 图片和文字，如何认出彼此</a><a href="04-vlm.html">从看见，到回答 →</a></nav></article></main><footer>内容由 AI 辅助整理 · <a href="https://github.com/TonyHo0303/TonyHo0303.github.io/issues">反馈与纠错</a></footer></body></html>
