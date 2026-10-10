@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>模型是真的会，还是猜对了 · Tony 的学习笔记</title><meta name="description" content="识别数据泄漏和语言捷径，通过独立测试、对照和消融判断进步来自哪里。">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/style.css"></head>
+<body><a class="skip" href="#main">跳到正文</a><header><a class="brand" href="../index.html">Tony 的学习笔记</a><a href="https://github.com/TonyHo0303">GitHub ↗</a></header>
+<main id="main"><article><a class="back" href="../index.html">← 全部文章</a><h1>模型是真的会，还是猜对了</h1><p class="subtitle">数据、评估与可相信的实验</p><p class="meta">多模态训练 · 第 6 篇</p><div class="article-body"><h2 id="先问-数据究竟监督了什么">先问：数据究竟监督了什么</h2>
+<p>“有一百万张图片”不是完整的数据描述。图片与什么文字配对？文字描述主体、细节还是背景？问题能否只靠常识回答？这些决定了模型获得什么学习信号。</p>
+<p>如果所有关于颜色的问题都指向红色物体，模型可能学习回答“红色”。增加同类样本数量，不会自动消除这种捷径。</p>
+<h2 id="最小数据规范">最小数据规范</h2>
+<p>每个样本至少应该能追溯来源、原始媒体、文本、任务类型和处理版本。检查损坏文件、重复样本、错误配对、长度截断和图像裁剪。用于学习的关键区域如果被裁掉，标签可能不再正确。</p>
+<p>合成描述和合成问答可以扩展覆盖范围，也可能把生成器的错误和固定表达带入训练。抽查样本时要按任务、来源与难度分层，不能只看随机几条。</p>
+<p>使用数据前也要确认来源许可和个人信息处理方式。它们是数据集设计的一部分。</p>
+<h2 id="按内容来源划分-防止泄漏">按内容来源划分，防止泄漏</h2>
+<p>一张图片配有五条描述时，不能把不同描述对应的同一图片分到训练和测试。视频的相邻帧、同一个文档的不同页面，也可能造成相似问题。</p>
+<p>先按图片、原视频或原始文档进行分组，再按任务目标划分。若想测跨来源泛化，还需要专门留出未见来源。测试集应在方法选择前固定，调参使用验证集。</p>
+<h2 id="设计三层评估">设计三层评估</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>层次</th>
+<th>要回答的问题</th>
+<th>例子</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>任务表现</td>
+<td>输出是否正确</td>
+<td>检索 Recall@K、问答准确率</td>
+</tr>
+<tr>
+<td>证据依赖</td>
+<td>模型是否使用相关输入</td>
+<td>无图、错配图、关键区域遮挡</td>
+</tr>
+<tr>
+<td>泛化边界</td>
+<td>换一种条件是否仍然有效</td>
+<td>新来源、新表达、罕见组合</td>
+</tr>
+</tbody>
+</table></div>
+<p>不同任务需要不同指标。定位常用区域重叠相关指标；语音识别关注词或字符错误；生成则需要兼顾条件符合程度、质量与多样性。没有一个总分能完整代表多模态能力。</p>
+<h2 id="反事实检查要谨慎解释">反事实检查要谨慎解释</h2>
+<p>把图像替换成无关图像，如果成绩几乎不变，值得调查语言捷径。但这不是充分证明：也可能测试问题本来就不需要图像。</p>
+<p>反过来，移除图片导致性能下降，也不能单独证明模型理解了全部视觉关系。需要把问题分为计数、颜色、关系、文字识别等类别，再检查错误模式。注意区分真实反事实与不自然的输入扰动。</p>
+<h2 id="让改进能够归因">让改进能够归因</h2>
+<p>比较两个方法时，尽量控制数据、初始化、分辨率、训练步数和评估协议。若计算预算不同，明确报告代价，不能只报告最高分。</p>
+<p>对关键改进进行消融：移除模块、替换为简单基线、调整数据比例。使用多个随机种子或适合任务的置信区间估计不确定性。若图片之间成组相关，统计时也要考虑这种依赖。</p>
+<h2 id="本篇练习">本篇练习</h2>
+<p>为自己的图文任务准备一页评估计划：独立测试集如何划分，主指标是什么，三个对照是什么，哪些错误需要人工审查。把“成功”写成可以检验的陈述。</p>
+<p><strong>验收：</strong>能说明某个分数提升支持什么结论，也能说明它还不能证明什么。</p>
+<h2 id="延伸阅读">延伸阅读</h2>
+<ul>
+<li><a href="https://proceedings.mlr.press/v139/radford21a.html">CLIP 原论文：跨数据集评估</a></li>
+<li><a href="https://arxiv.org/abs/2304.08485">LLaVA 原论文：视觉指令与评估</a></li>
+</ul></div><nav class="pagination" aria-label="上一篇和下一篇"><a href="04-vlm.html">← 从看见，到回答</a><a href="06-engineering.html">把一次训练变成可靠的实验 →</a></nav></article></main><footer>内容由 AI 辅助整理 · <a href="https://github.com/TonyHo0303/TonyHo0303.github.io/issues">反馈与纠错</a></footer></body></html>

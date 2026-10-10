@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>先画地图，再开始训练 · Tony 的学习笔记</title><meta name="description" content="认识多模态的主要问题，规划适合数理基础扎实、正在补齐代码能力的学习路径。">
+<link rel="icon" href="../assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/style.css"></head>
+<body><a class="skip" href="#main">跳到正文</a><header><a class="brand" href="../index.html">Tony 的学习笔记</a><a href="https://github.com/TonyHo0303">GitHub ↗</a></header>
+<main id="main"><article><a class="back" href="../index.html">← 全部文章</a><h1>先画地图，再开始训练</h1><p class="subtitle">把“成为专家”拆成可以验证的能力</p><p class="meta">多模态训练 · 第 1 篇</p><div class="article-body"><h2 id="先定义你想获得的能力">先定义你想获得的能力</h2>
+<p>“学完多模态”没有一个固定终点。更实用的目标是：面对一个新任务，你能判断需要哪些信息，设计训练目标，写出可运行的实验，并用证据解释结果。</p>
+<p>这套笔记面向有数理基础、正在补齐代码能力的学习者。第一轮先贯通图像与文字，再把同一套思考方式迁移到音频、视频和生成模型。这里是一套入门到研究的路线，不意味着读完八篇就掌握了整个领域。</p>
+<h2 id="模态只是信息的表现形式">模态只是信息的表现形式</h2>
+<p>图像是像素，文字是符号序列，声音是随时间变化的信号。它们可能描述同一个事件，却保留不同的信息。一张狗的照片能展示外形；“狗在门外叫”能表达关系；声音能提供音色和节奏。</p>
+<p>多模态训练要利用这些联系，也要保留各自独有的信息。不能假设所有模态都能无损地变成文字。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>问题</th>
+<th>例子</th>
+<th>需要学会的能力</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>表示</td>
+<td>把图片变成向量</td>
+<td>保留任务相关的信息</td>
+</tr>
+<tr>
+<td>对齐</td>
+<td>给图片找到对应描述</td>
+<td>建立跨模态对应</td>
+</tr>
+<tr>
+<td>融合</td>
+<td>结合画面与声音判断事件</td>
+<td>利用互补证据</td>
+</tr>
+<tr>
+<td>生成</td>
+<td>根据文字画图</td>
+<td>学习条件分布</td>
+</tr>
+<tr>
+<td>定位</td>
+<td>找到描述对应的区域</td>
+<td>处理细粒度对应</td>
+</tr>
+<tr>
+<td>行动</td>
+<td>看懂界面并操作</td>
+<td>将感知转成决策</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="用一条链组织学习">用一条链组织学习</h2>
+<div class="concept-line"><span>数学目标</span><b>→</b><span>张量运算</span><b>→</b><span>梯度更新</span><b>→</b><span>模型行为</span><b>→</b><span>实验证据</span></div>
+
+<p>例如，“让正确图文更相似”是目标；计算批次内所有配对的相似度是运算；反向传播更新编码器是训练；检索正确描述是行为；独立测试集上的检索指标是证据。</p>
+<p>这条链的任何一处出错，都可能出现“程序在运行，但没有解决问题”的情况。学习时要反复追问：这一步改变了什么，怎样验证？</p>
+<h2 id="四个阶段-四个作品">四个阶段，四个作品</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>建议作品</th>
+<th>通过标准</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>公式变代码</td>
+<td>小型配对学习实验</td>
+<td>能解释每个张量和梯度</td>
+</tr>
+<tr>
+<td>图文对齐</td>
+<td>一个图文检索器</td>
+<td>在未见图片上报告结果</td>
+</tr>
+<tr>
+<td>视觉语言生成</td>
+<td>小规模视觉问答微调</td>
+<td>能证明回答使用了图像</td>
+</tr>
+<tr>
+<td>独立研究</td>
+<td>一份带消融的实验报告</td>
+<td>别人可以复现核心结论</td>
+</tr>
+</tbody>
+</table></div>
+<p>若每周投入十到十五小时，可以先用两到四周打通张量和训练循环，再用数周完成一个小型对齐实验。时间只用于安排，是否进入下一阶段由作品和理解程度决定。</p>
+<h2 id="每篇笔记怎么使用">每篇笔记怎么使用</h2>
+<p>先读直觉，再自己推导关键公式，接着运行最小代码，最后写下一条失败记录。读懂别人给出的解释与独立预测实验结果，是两种不同的能力。</p>
+<p>遇到大型开源项目时，先找到数据进入的位置、模型前向和损失计算。暂时不要求理解所有训练框架。</p>
+<h2 id="本篇练习">本篇练习</h2>
+<p>选一个任务，例如“用一句话搜索自己的风景照片”，写下输入、输出、训练样本、目标函数和评价方式。然后列出三个可能的捷径：文件名泄漏、重复图片、描述中固定出现的关键词。</p>
+<p><strong>验收：</strong>不用模型名称，也能完整说明这个任务如何学习、如何验证。</p></div><nav class="pagination" aria-label="上一篇和下一篇"><a href="../index.html">← 返回目录</a><a href="01-tensors.html">让公式长出代码 →</a></nav></article></main><footer>内容由 AI 辅助整理 · <a href="https://github.com/TonyHo0303/TonyHo0303.github.io/issues">反馈与纠错</a></footer></body></html>
