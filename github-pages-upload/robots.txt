@@ -1,3 +1,0 @@
-User-agent: *
-Allow: /
-Sitemap: https://tonyho0303.github.io/sitemap.xml
